@@ -70,10 +70,11 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void parametroFaltanteResponde400() throws Exception {
+    void parametroFaltanteResponde400ConElCampo() throws Exception {
         mvc.perform(get("/api/prueba/lista"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.codigo").value("PETICION_INVALIDA"));
+                .andExpect(jsonPath("$.codigo").value("DATOS_INVALIDOS"))
+                .andExpect(jsonPath("$.campos.pagina").value("Obligatorio"));
     }
 
     @Test

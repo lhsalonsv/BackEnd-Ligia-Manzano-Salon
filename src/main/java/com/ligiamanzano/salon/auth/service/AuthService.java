@@ -26,6 +26,8 @@ import java.util.Map;
 @Service
 public class AuthService {
 
+    private static final String USUARIO = "USUARIO";
+
     private final UsuarioRepository usuarioRepo;
     private final SesionService sesionService;
     private final JwtService jwtService;
@@ -56,13 +58,14 @@ public class AuthService {
 
         if (u == null) {
             encoder.matches(req.contrasena(), hashFalso);
-            bitacora.registrar(null, BitacoraService.SEGURIDAD, "LOGIN_FALLIDO",
-                    "Usuario inexistente: " + recortar(nombre, 50));
+            bitacora.registrarSinSesion(null, BitacoraService.SEGURIDAD, "USUARIO_INEXISTENTE", null, null,
+                    "Intentó entrar con un usuario que no existe: " + recortar(nombre, 50));
             throw new CredencialesInvalidasException();
         }
 
         if (u.getBloqueadoHasta() != null && u.getBloqueadoHasta().isAfter(ahora)) {
-            bitacora.registrar(u.getIdUsuario(), BitacoraService.SEGURIDAD, "LOGIN_RECHAZADO", "Cuenta bloqueada");
+            bitacora.registrarSinSesion(null, BitacoraService.SEGURIDAD, "ENTRADA_BLOQUEADA", USUARIO, u.getIdUsuario(),
+                    "Intentó entrar a " + u.getNombreUsuario() + " con la cuenta bloqueada");
             throw new CredencialesInvalidasException();
         }
 
@@ -71,18 +74,21 @@ public class AuthService {
             if (intentos >= props.intentosMaximos()) {
                 u.setBloqueadoHasta(ahora.plus(props.bloqueo()));
                 u.setIntentosFallidos((short) 0);
-                bitacora.registrar(u.getIdUsuario(), BitacoraService.SEGURIDAD, "BLOQUEO",
-                        "Bloqueado " + props.bloqueo().toMinutes() + " min por intentos fallidos");
+                bitacora.registrarSinSesion(null, BitacoraService.SEGURIDAD, "CUENTA_BLOQUEADA", USUARIO, u.getIdUsuario(),
+                        "Bloqueó " + u.getNombreUsuario() + " " + props.bloqueo().toMinutes() + " minutos por "
+                                + props.intentosMaximos() + " contraseñas incorrectas");
             } else {
                 u.setIntentosFallidos(intentos);
-                bitacora.registrar(u.getIdUsuario(), BitacoraService.SEGURIDAD, "LOGIN_FALLIDO",
-                        "Contraseña incorrecta (intento " + intentos + " de " + props.intentosMaximos() + ")");
+                bitacora.registrarSinSesion(null, BitacoraService.SEGURIDAD, "CONTRASENA_INCORRECTA", USUARIO, u.getIdUsuario(),
+                        "Contraseña incorrecta para " + u.getNombreUsuario() + " · " + intentos
+                                + (intentos == 1 ? " intento" : " intentos"));
             }
             throw new CredencialesInvalidasException();
         }
 
         if (!u.isActivo()) {
-            bitacora.registrar(u.getIdUsuario(), BitacoraService.SEGURIDAD, "LOGIN_RECHAZADO", "Usuario inactivo");
+            bitacora.registrarSinSesion(null, BitacoraService.SEGURIDAD, "USUARIO_INACTIVO", USUARIO, u.getIdUsuario(),
+                    "Intentó entrar con el usuario desactivado " + u.getNombreUsuario());
             throw new CredencialesInvalidasException();
         }
 
@@ -92,7 +98,8 @@ public class AuthService {
 
         SesionEntity sesion = sesionService.crear(u, ip, userAgent);
         String token = jwtService.generar(u.getIdUsuario(), sesion.getIdSesion(), sesion.getExpiraEn());
-        bitacora.registrar(u.getIdUsuario(), BitacoraService.SEGURIDAD, "LOGIN_OK", "Inicio de sesión");
+        bitacora.registrarSinSesion(u.getIdUsuario(), BitacoraService.SESION, "ENTRAR", USUARIO, u.getIdUsuario(),
+                "Inició sesión");
 
         return new LoginResponse(token, new UsuarioSesionDTO(
                 u.getIdUsuario(), u.getNombreUsuario(), u.getNombreCompleto(),
@@ -102,7 +109,7 @@ public class AuthService {
     @Transactional
     public void logout(UsuarioAutenticado actual) {
         sesionService.revocar(actual.idSesion(), "LOGOUT");
-        bitacora.registrar(actual.idUsuario(), BitacoraService.SEGURIDAD, "LOGOUT", "Cierre de sesión");
+        bitacora.registrar(BitacoraService.SESION, "SALIR", USUARIO, actual.idUsuario(), "Cerró sesión");
     }
 
     @Transactional
@@ -123,7 +130,8 @@ public class AuthService {
         u.setContrasenaHash(encoder.encode(req.contrasenaNueva()));
         u.setDebeCambiarContrasena(false);
         sesionService.revocarTodas(u.getIdUsuario(), "CAMBIO_CONTRASENA");
-        bitacora.registrar(u.getIdUsuario(), BitacoraService.SEGURIDAD, "CAMBIO_CONTRASENA", "Cambió su contraseña");
+        bitacora.registrar(BitacoraService.SESION, "CAMBIAR_CONTRASENA", USUARIO, u.getIdUsuario(),
+                "Cambió su contraseña");
     }
 
     private static String recortar(String valor, int max) {

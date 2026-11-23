@@ -11,5 +11,9 @@ import lombok.Setter;
 public class ActividadEntity {
 
     @Id
+    @Column(name = "cod_actividad", length = 6)
     private String codActividad;
+
+    @Column(name = "descripcion", nullable = false, length = 150)
+    private String descripcion;
 }

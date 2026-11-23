@@ -12,5 +12,9 @@ public class EspecialidadEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_especialidad")
     private Integer idEspecialidad;
+
+    @Column(name = "nombre_especialidad", nullable = false, unique = true, length = 40)
+    private String nombreEspecialidad;
 }

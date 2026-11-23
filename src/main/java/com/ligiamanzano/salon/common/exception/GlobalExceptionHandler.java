@@ -2,16 +2,19 @@ package com.ligiamanzano.salon.common.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -35,6 +38,22 @@ public class GlobalExceptionHandler {
         ResponseEntity<Map<String, Object>> respuesta = error(HttpStatus.CONFLICT, e.getMessage(), e.getCodigo(), e.getCampos());
         if (e.getExtra() != null) respuesta.getBody().putAll(e.getExtra());
         return respuesta;
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> integridad(DataIntegrityViolationException e) {
+        String estado = e.getMostSpecificCause() instanceof SQLException sql ? sql.getSQLState() : null;
+        if ("23505".equals(estado)) {
+            return error(HttpStatus.CONFLICT, "Ese dato ya está registrado.", "DUPLICADO", null);
+        }
+        if ("23503".equals(estado)) {
+            return error(HttpStatus.CONFLICT, "El dato hace referencia a algo que no existe o está en uso.", "REFERENCIA_INVALIDA", null);
+        }
+        if ("23514".equals(estado)) {
+            return error(HttpStatus.BAD_REQUEST, "Algún dato no cumple las reglas.", "DATOS_INVALIDOS", null);
+        }
+        log.error("Error de integridad no esperado", e);
+        return error(HttpStatus.CONFLICT, "No se pudo guardar por un conflicto con otros datos.", "CONFLICTO", null);
     }
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
@@ -64,6 +83,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> tipoInvalido(MethodArgumentTypeMismatchException e) {
         return error(HttpStatus.BAD_REQUEST, "Revisa los campos marcados", "DATOS_INVALIDOS",
                 Map.of(e.getName(), "Valor no válido"));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> parametroFaltante(MissingServletRequestParameterException e) {
+        return error(HttpStatus.BAD_REQUEST, "Revisa los campos marcados", "DATOS_INVALIDOS",
+                Map.of(e.getParameterName(), "Obligatorio"));
     }
 
     @ExceptionHandler(Exception.class)
