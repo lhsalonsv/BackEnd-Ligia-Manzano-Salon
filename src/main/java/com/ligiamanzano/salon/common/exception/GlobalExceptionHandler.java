@@ -18,10 +18,16 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    //Para errores en las líneas de una compra, debe llegar al frontend como campos.detalle y no lista[índice].campo
+    private static final Pattern CAMPO_DE_LINEA = Pattern.compile("^(\\w+)\\[(\\d+)]\\..+$");
 
     @ExceptionHandler(CredencialesInvalidasException.class)
     public ResponseEntity<Map<String, Object>> credenciales(CredencialesInvalidasException e) {
@@ -64,8 +70,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> validacion(MethodArgumentNotValidException e) {
         Map<String, String> campos = new LinkedHashMap<>();
-        e.getBindingResult().getFieldErrors()
-                .forEach(f -> campos.putIfAbsent(f.getField(), f.getDefaultMessage()));
+        e.getBindingResult().getFieldErrors().forEach(f -> {
+            Matcher linea = CAMPO_DE_LINEA.matcher(f.getField());
+            if (linea.matches()) {
+                int numero = Integer.parseInt(linea.group(2)) + 1;
+                campos.putIfAbsent(linea.group(1), "La línea " + numero + ": " + primeraEnMinuscula(f.getDefaultMessage()) + ".");
+            } else {
+                campos.putIfAbsent(f.getField(), f.getDefaultMessage());
+            }
+        });
         return error(HttpStatus.BAD_REQUEST, "Revisa los campos marcados", "DATOS_INVALIDOS", campos);
     }
 
@@ -114,8 +127,13 @@ public class GlobalExceptionHandler {
         };
     }
 
+    private static String primeraEnMinuscula(String texto) {
+        if (texto == null || texto.isEmpty()) return "dato no válido";
+        return Character.toLowerCase(texto.charAt(0)) + texto.substring(1);
+    }
+
     private ResponseEntity<Map<String, Object>> error(HttpStatus status, String mensaje, String codigo,
-                                                      Map<String, String> campos) {
+                                                      Map<String, ?> campos) {
         Map<String, Object> cuerpo = new LinkedHashMap<>();
         cuerpo.put("mensaje", mensaje);
         cuerpo.put("codigo", codigo);

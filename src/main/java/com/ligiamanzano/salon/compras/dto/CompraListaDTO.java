@@ -13,6 +13,8 @@ public record CompraListaDTO(
         String numeroDocumentoProveedor,
         int productos,
         int unidades,
+        int gastos,
+        String primerGasto,
         BigDecimal total,
         String estado
 ) {}

@@ -5,13 +5,13 @@ import java.util.Map;
 public class OperacionInvalidaException extends RuntimeException {
 
     private final String codigo;
-    private final Map<String, String> campos;
+    private final Map<String, ?> campos;
 
     public OperacionInvalidaException(String mensaje) {
         this(mensaje, "OPERACION_INVALIDA", null);
     }
 
-    public OperacionInvalidaException(String mensaje, String codigo, Map<String, String> campos) {
+    public OperacionInvalidaException(String mensaje, String codigo, Map<String, ?> campos) {
         super(mensaje);
         this.codigo = codigo;
         this.campos = campos;
@@ -19,5 +19,5 @@ public class OperacionInvalidaException extends RuntimeException {
 
     public String getCodigo() { return codigo; }
 
-    public Map<String, String> getCampos() { return campos; }
+    public Map<String, ?> getCampos() { return campos; }
 }

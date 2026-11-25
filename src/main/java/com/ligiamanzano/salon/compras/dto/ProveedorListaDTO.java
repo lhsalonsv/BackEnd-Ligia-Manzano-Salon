@@ -6,6 +6,7 @@ public record ProveedorListaDTO(
         String razonSocial,
         String nit,
         String nrc,
+        String nacionalidad,
         String contactoNombre,
         String telefono,
         Short diasCredito,

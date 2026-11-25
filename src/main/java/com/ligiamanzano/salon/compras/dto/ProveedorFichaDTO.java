@@ -8,6 +8,7 @@ public record ProveedorFichaDTO(
         String nombreComercial,
         String nit,
         String nrc,
+        String nacionalidad,
         String contactoNombre,
         String telefono,
         String correo,

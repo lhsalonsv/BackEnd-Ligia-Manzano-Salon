@@ -7,7 +7,9 @@ public record CompraResumenDTO(
         Integer idCompra,
         String numeroCompra,
         LocalDate fechaCompra,
+        String tipoDocumentoProveedor,
         int productos,
+        int gastos,
         BigDecimal total,
         LocalDate fechaVencimientoPago
 ) {}

@@ -12,5 +12,9 @@ public class MarcaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_marca")
     private Integer idMarca;
+
+    @Column(name = "nombre_marca", nullable = false, unique = true, length = 60)
+    private String nombreMarca;
 }
