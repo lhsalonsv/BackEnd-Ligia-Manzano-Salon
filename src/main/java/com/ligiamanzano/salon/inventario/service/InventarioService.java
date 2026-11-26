@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,45 +48,24 @@ public class InventarioService {
     @Transactional
     public void entrada(int idProducto, String tipo, int cantidad, BigDecimal costoUnitario,
                         Integer idDetalleCompra, String motivo) {
-        crearLote(idProducto, tipo, cantidad, costoUnitario, idDetalleCompra, motivo, Marca.AHORA);
-    }
-
-    //Bloquea, reparte con Peps, inserta un movimiento negativo por cada lote tocado, avisa el stock bajo y devuelve el costo total a 2 decimales.
-    @Transactional
-    public BigDecimal consumir(int idProducto, int cantidad, String tipo, String motivo, Integer idDetalleVenta) {
-        return sacar(idProducto, cantidad, tipo, motivo, idDetalleVenta, Marca.AHORA);
-    }
-
-    @Transactional
-    public BigDecimal ajustarPorInventarioFisico(int idProducto, int diferencia, String nota,
-                                                 Instant fechaHora, int idInventarioFisico) {
-        Marca marca = new Marca(fechaHora, idInventarioFisico);
-        if (diferencia < 0) {
-            return sacar(idProducto, -diferencia, SALIDA_AJUSTE, nota, null, marca).negate();
-        }
-        BigDecimal costo = ultimoCosto(idProducto).orElseThrow();
-        crearLote(idProducto, ENTRADA_AJUSTE, diferencia, costo, null, nota, marca);
-        return costo.multiply(BigDecimal.valueOf(diferencia)).setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private void crearLote(int idProducto, String tipo, int cantidad, BigDecimal costoUnitario,
-                           Integer idDetalleCompra, String motivo, Marca marca) {
         LoteEntity lote = new LoteEntity();
         lote.setIdProducto(idProducto);
         lote.setIdDetalleCompra(idDetalleCompra);
         lote.setCostoUnitario(costoUnitario);
         lote.setCantidadInicial(cantidad);
         loteRepo.save(lote);
-        guardarMovimiento(lote.getIdLote(), idProducto, tipo, cantidad, costoUnitario, idDetalleCompra, null, motivo, marca);
+        guardarMovimiento(lote.getIdLote(), idProducto, tipo, cantidad, costoUnitario, idDetalleCompra, null, motivo);
     }
 
-    private BigDecimal sacar(int idProducto, int cantidad, String tipo, String motivo, Integer idDetalleVenta, Marca marca) {
+    //Bloquea, reparte con Peps, inserta un movimiento negativo por cada lote tocado, avisa el stock bajo y devuelve el costo total a 2 decimales.
+    @Transactional
+    public BigDecimal consumir(int idProducto, int cantidad, String tipo, String motivo, Integer idDetalleVenta) {
         List<Peps.LoteDisponible> lotes = peps.bloquearLotesConExistencia(idProducto);
         int antes = lotes.stream().mapToInt(Peps.LoteDisponible::disponible).sum();
         List<Salida> salidas = Peps.repartir(lotes, cantidad);
         BigDecimal costo = BigDecimal.ZERO;
         for (Salida s : salidas) {
-            guardarMovimiento(s.idLote(), idProducto, tipo, -s.cantidad(), s.costoUnitario(), null, idDetalleVenta, motivo, marca);
+            guardarMovimiento(s.idLote(), idProducto, tipo, -s.cantidad(), s.costoUnitario(), null, idDetalleVenta, motivo);
             costo = costo.add(s.costo());
         }
         avisarSiQuedaBajo(idProducto, antes, antes - cantidad);
@@ -95,7 +73,7 @@ public class InventarioService {
     }
 
     private void guardarMovimiento(int idLote, int idProducto, String tipo, int cantidad, BigDecimal costoUnitario,
-                                   Integer idDetalleCompra, Integer idDetalleVenta, String motivo, Marca marca) {
+                                   Integer idDetalleCompra, Integer idDetalleVenta, String motivo) {
         MovimientoInventarioEntity m = new MovimientoInventarioEntity();
         m.setIdLote(idLote);
         m.setIdProducto(idProducto);
@@ -106,8 +84,6 @@ public class InventarioService {
         m.setIdDetalleVenta(idDetalleVenta);
         m.setMotivo(motivo);
         m.setIdUsuario(UsuarioActual.id());
-        m.setFechaHora(marca.fechaHora());
-        m.setIdInventarioFisico(marca.idInventarioFisico());
         movimientoRepo.save(m);
     }
 
@@ -117,9 +93,5 @@ public class InventarioService {
         if (minimo > 0 && antes >= minimo && despues < minimo) {
             notificaciones.stockBajo(idProducto, p.getNombreProducto(), despues, minimo);
         }
-    }
-
-    private record Marca(Instant fechaHora, Integer idInventarioFisico) {
-        static final Marca AHORA = new Marca(null, null);
     }
 }

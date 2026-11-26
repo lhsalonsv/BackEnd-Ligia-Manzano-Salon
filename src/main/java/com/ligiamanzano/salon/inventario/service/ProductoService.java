@@ -64,6 +64,10 @@ public class ProductoService {
         return p.isActivo() ? null : "el producto " + p.getNombreProducto() + " está inactivo.";
     }
 
+    public String nombre(int idProducto) {
+        return repo.findById(idProducto).map(ProductoEntity::getNombreProducto).orElse("El producto " + idProducto);
+    }
+
     @Transactional
     public ProductoDetalleDTO crear(ProductoRequest dto) {
         validar(dto, null);

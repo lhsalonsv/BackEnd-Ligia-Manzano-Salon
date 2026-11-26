@@ -2,6 +2,7 @@ package com.ligiamanzano.salon.common.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,6 +62,13 @@ public class GlobalExceptionHandler {
         }
         log.error("Error de integridad no esperado", e);
         return error(HttpStatus.CONFLICT, "No se pudo guardar por un conflicto con otros datos.", "CONFLICTO", null);
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<Map<String, Object>> baseDeDatos(DataAccessException e) {
+        return ErrorDeBase.mensaje(e)
+                .map(mensaje -> error(HttpStatus.CONFLICT, mensaje, "REGLA_DE_LA_BASE", null))
+                .orElseGet(() -> inesperado(e));
     }
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
@@ -106,6 +115,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> inesperado(Exception e) {
+        Optional<String> reglaDeLaBase = ErrorDeBase.mensaje(e);
+        if (reglaDeLaBase.isPresent()) {
+            return error(HttpStatus.CONFLICT, reglaDeLaBase.get(), "REGLA_DE_LA_BASE", null);
+        }
         if (e instanceof ErrorResponse respuestaDeSpring) {
             return errorDeSpring(respuestaDeSpring);
         }
