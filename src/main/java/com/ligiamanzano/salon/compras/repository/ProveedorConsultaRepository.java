@@ -79,7 +79,8 @@ public class ProveedorConsultaRepository {
 
     public TotalComprasDTO comprasDelAnio(int idProveedor) {
         return jdbc.sql("""
-                        select count(*) as cantidad, coalesce(sum(total), 0.00) as total
+                        select count(*) as cantidad,
+                               coalesce(sum(case when tipo_documento_proveedor = 'NC' then -total else total end), 0.00) as total
                           from tb_compras
                          where id_proveedor = :idProveedor and estado <> 'ANULADA'
                            and extract(year from fecha_compra) = extract(year from cast(:hoy as date))

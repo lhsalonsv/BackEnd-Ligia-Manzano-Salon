@@ -428,8 +428,12 @@ class PruebaSprint2IT {
                         "{ \"idProducto\": " + idA + ", \"cantidad\": 9, \"costoUnitario\": 5.00 }"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.codigo").value("STOCK_INSUFICIENTE"))
-                .andExpect(jsonPath("$.mensaje", allOf(startsWith("Del lote "), endsWith("solo quedan 8 unidades: no se pueden devolver 9"))));
+                .andExpect(jsonPath("$.mensaje").value("De Champú libro prueba solo quedan 8 unidades del lote de esa compra: no se pueden devolver 9"));
         leer("/api/productos/" + idA).andExpect(jsonPath("$.existencia").value(8));
+        leer("/api/proveedores/" + idProv)
+                .andExpect(jsonPath("$.ultimasCompras[0].tipoDocumentoProveedor").value("NC"))
+                .andExpect(jsonPath("$.comprasAnio.cantidad").value(3))
+                .andExpect(jsonPath("$.comprasAnio.total").value(56.73));
 
         leer("/api/compras", "idProveedor", String.valueOf(idProv))
                 .andExpect(jsonPath("$.contenido[?(@.idCompra == " + idCcf + ")].gastos").value(contains(1)))
@@ -525,7 +529,7 @@ class PruebaSprint2IT {
         sinDejarRastro(post("/api/inventario-fisico/" + idInv + "/cerrar"), "{}")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.codigo").value("REGLA_DE_LA_BASE"))
-                .andExpect(jsonPath("$.mensaje", containsString("nunca se compró antes del corte")));
+                .andExpect(jsonPath("$.mensaje").value("Nunca comprado prueba: sobran unidades pero nunca se compró antes del corte, no hay costo para valuarlas"));
         enviar(put("/api/inventario-fisico/" + idInv + "/conteo"), "[ { \"idProducto\": " + idSinCompra + ", \"cantidadContada\": 0 } ]")
                 .andExpect(status().isOk());
 
