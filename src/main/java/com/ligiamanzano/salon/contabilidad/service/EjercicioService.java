@@ -3,7 +3,9 @@ package com.ligiamanzano.salon.contabilidad.service;
 import com.ligiamanzano.salon.bitacora.service.BitacoraService;
 import com.ligiamanzano.salon.common.exception.ConflictoException;
 import com.ligiamanzano.salon.common.exception.RecursoNoEncontradoException;
+import com.ligiamanzano.salon.contabilidad.dto.CierreEjercicioDTO;
 import com.ligiamanzano.salon.contabilidad.dto.EjercicioDTO;
+import com.ligiamanzano.salon.contabilidad.dto.PartidaDetalleDTO;
 import com.ligiamanzano.salon.contabilidad.repository.EjercicioRepository;
 import com.ligiamanzano.salon.security.UsuarioActual;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class EjercicioService {
     private static final String PERIODO = "PERIODO_CONTABLE";
 
     private final EjercicioRepository repo;
+    private final PartidaService partidas;
     private final BitacoraService bitacora;
 
     public List<EjercicioDTO> listar() {
@@ -56,6 +59,22 @@ public class EjercicioService {
         bitacora.registrar(BitacoraService.CONTABILIDAD, "REABRIR_MES", PERIODO, mes + "/" + anio,
                 "Reabrió el mes " + mes + "/" + anio);
         return obtener(anio);
+    }
+
+    @Transactional
+    public PartidaDetalleDTO generarPartidaCierre(short anio) {
+        int idPartida = repo.generarPartidaCierre(anio, UsuarioActual.id());
+        bitacora.registrar(BitacoraService.CONTABILIDAD, "GENERAR_CIERRE", EJERCICIO, anio,
+                "Generó el borrador de la partida de cierre del ejercicio " + anio);
+        return partidas.obtener(idPartida);
+    }
+
+    @Transactional
+    public CierreEjercicioDTO cerrarEjercicio(short anio) {
+        Integer idTraslado = repo.cerrarEjercicio(anio, UsuarioActual.id());
+        bitacora.registrar(BitacoraService.CONTABILIDAD, "CERRAR_EJERCICIO", EJERCICIO, anio,
+                "Cerró el ejercicio " + anio + (idTraslado == null ? " (sin traslado del resultado)" : ""));
+        return new CierreEjercicioDTO(idTraslado);
     }
 
     private void validarPeriodo(short anio, short mes) {

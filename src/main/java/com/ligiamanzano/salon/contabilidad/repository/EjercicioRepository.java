@@ -80,4 +80,20 @@ public class EjercicioRepository {
                 .query((rs, n) -> 0)
                 .list();
     }
+
+    public int generarPartidaCierre(short anio, int idUsuario) {
+        return jdbc.sql("select fn_generar_partida_cierre(cast(:anio as smallint), :usuario)")
+                .param("anio", anio)
+                .param("usuario", idUsuario)
+                .query(Integer.class)
+                .single();
+    }
+
+    public Integer cerrarEjercicio(short anio, int idUsuario) {
+        return jdbc.sql("select fn_cerrar_ejercicio(cast(:anio as smallint), :usuario)")
+                .param("anio", anio)
+                .param("usuario", idUsuario)
+                .query((rs, n) -> rs.getObject(1, Integer.class))
+                .single();
+    }
 }
