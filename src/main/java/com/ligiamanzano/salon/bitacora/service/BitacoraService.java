@@ -44,6 +44,7 @@ public class BitacoraService {
     public static final String INVENTARIO = "INVENTARIO";
     public static final String COMPRAS = "COMPRAS";
     public static final String CONTABILIDAD = "CONTABILIDAD";
+    public static final String CONFIGURACION = "CONFIGURACION";
 
     public static final String TODO = "todo";
     public static final String SISTEMA = "sistema";

@@ -1,5 +1,6 @@
 package com.ligiamanzano.salon.configuracion.service;
 
+import com.ligiamanzano.salon.configuracion.entity.ParametroEntity;
 import com.ligiamanzano.salon.configuracion.repository.ParametroRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,5 +26,14 @@ public class ParametroService {
         return repo.findById(clave)
                 .map(p -> new BigDecimal(p.getValor().trim()))
                 .orElseThrow(() -> new IllegalStateException("Falta el parámetro " + clave + " en tb_parametros"));
+    }
+
+    @Transactional
+    public void guardar(String clave, BigDecimal valor) {
+        ParametroEntity parametro = repo.findById(clave)
+                .orElseThrow(() -> new IllegalStateException("Falta el parámetro " + clave + " en tb_parametros"));
+        if (new BigDecimal(parametro.getValor().trim()).compareTo(valor) != 0) {
+            parametro.setValor(valor.toPlainString());
+        }
     }
 }

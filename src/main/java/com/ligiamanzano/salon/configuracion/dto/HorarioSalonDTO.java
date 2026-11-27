@@ -6,7 +6,7 @@ import jakarta.validation.constraints.*;
 import java.time.LocalTime;
 
 public record HorarioSalonDTO(
-        @NotNull @Min(1) @Max(7)
+        @NotNull(message = "Falta el día") @Min(value = 1, message = "Día de 1 (lunes) a 7 (domingo)") @Max(value = 7, message = "Día de 1 (lunes) a 7 (domingo)")
         Short diaSemana,
         boolean abierto,
         @JsonFormat(pattern = "HH:mm")
