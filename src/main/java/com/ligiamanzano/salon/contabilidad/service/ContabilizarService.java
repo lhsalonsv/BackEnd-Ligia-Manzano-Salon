@@ -4,6 +4,7 @@ import com.ligiamanzano.salon.bitacora.service.BitacoraService;
 import com.ligiamanzano.salon.common.exception.OperacionInvalidaException;
 import com.ligiamanzano.salon.contabilidad.dto.ContabilizadoDTO;
 import com.ligiamanzano.salon.contabilidad.dto.ContabilizarRequest;
+import com.ligiamanzano.salon.contabilidad.dto.ImpuestosDTO;
 import com.ligiamanzano.salon.contabilidad.dto.VistaPreviaDTO;
 import com.ligiamanzano.salon.contabilidad.repository.ContabilizarRepository;
 import com.ligiamanzano.salon.security.UsuarioActual;
@@ -53,6 +54,19 @@ public class ContabilizarService {
                     null, datos);
         }
         return new ContabilizadoDTO(ids);
+    }
+
+    @Transactional
+    public ImpuestosDTO generarImpuestos(short anio, short mes) {
+        if (mes < 1 || mes > 12) {
+            throw new OperacionInvalidaException("Revisa los campos marcados", "DATOS_INVALIDOS",
+                    Map.of("mes", "El mes va de 1 a 12."));
+        }
+        int idPartida = repo.generarImpuestos(anio, mes, UsuarioActual.id());
+        String periodo = "%02d/%d".formatted(mes, anio);
+        bitacora.registrar(BitacoraService.CONTABILIDAD, "GENERAR_IMPUESTOS", "PERIODO_IVA", periodo,
+                "Generó en borrador la liquidación de IVA y el pago a cuenta de " + periodo);
+        return new ImpuestosDTO(idPartida);
     }
 
     private static String validar(String origen, LocalDate desde, LocalDate hasta) {

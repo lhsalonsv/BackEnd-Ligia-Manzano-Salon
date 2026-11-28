@@ -48,4 +48,13 @@ public class ContabilizarRepository {
                 .query(Integer.class)
                 .list();
     }
+
+    public int generarImpuestos(short anio, short mes, int idUsuario) {
+        return jdbc.sql("select fn_generar_impuestos_mes(cast(:anio as smallint), cast(:mes as smallint), :usuario)")
+                .param("anio", anio)
+                .param("mes", mes)
+                .param("usuario", idUsuario)
+                .query(Integer.class)
+                .single();
+    }
 }

@@ -1,5 +1,6 @@
 package com.ligiamanzano.salon.librosiva.repository;
 
+import com.ligiamanzano.salon.librosiva.dto.ResumenF07DTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -9,6 +10,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,5 +78,22 @@ public class LibrosIvaRepository {
             }
         }
         return texto.toString();
+    }
+
+    public ResumenF07DTO resumenF07(YearMonth mes) {
+        return jdbc.sql("select * from fn_resumen_iva(cast(:anio as smallint), cast(:mes as smallint))")
+                .param("anio", mes.getYear())
+                .param("mes", mes.getMonthValue())
+                .query((rs, n) -> new ResumenF07DTO(
+                        rs.getBigDecimal("debito_ccf"),
+                        rs.getBigDecimal("debito_cf"),
+                        rs.getBigDecimal("credito_fiscal"),
+                        rs.getBigDecimal("iva_percibido"),
+                        rs.getBigDecimal("iva_retenido"),
+                        rs.getBigDecimal("anticipo_iva"),
+                        rs.getBigDecimal("remanente_anterior"),
+                        rs.getBigDecimal("ingresos_brutos"),
+                        rs.getBigDecimal("pago_a_cuenta")))
+                .single();
     }
 }

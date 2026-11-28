@@ -4,6 +4,7 @@ import com.ligiamanzano.salon.common.util.Periodo;
 import com.ligiamanzano.salon.configuracion.service.EmisorService;
 import com.ligiamanzano.salon.librosiva.dto.LibrosIvaDTO;
 import com.ligiamanzano.salon.librosiva.dto.PendientesDTO;
+import com.ligiamanzano.salon.librosiva.dto.ResumenF07DTO;
 import com.ligiamanzano.salon.librosiva.repository.LibrosIvaRepository;
 import com.ligiamanzano.salon.librosiva.repository.LibrosIvaRepository.Anexo;
 import lombok.RequiredArgsConstructor;
@@ -31,5 +32,9 @@ public class LibrosIvaService {
                 repo.filas(Anexo.COMPRAS, mes),
                 repo.filas(Anexo.ANULADOS, mes),
                 new PendientesDTO(repo.sinSello(mes, p.primerDiaDelSiguiente())));
+    }
+
+    public ResumenF07DTO resumenF07(String periodo) {
+        return repo.resumenF07(Periodo.desde(periodo).mes());
     }
 }
