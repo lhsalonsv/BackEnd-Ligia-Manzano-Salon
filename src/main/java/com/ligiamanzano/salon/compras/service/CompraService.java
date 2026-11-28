@@ -16,8 +16,10 @@ import com.ligiamanzano.salon.compras.repository.CompraConsultaRepository.Filtro
 import com.ligiamanzano.salon.compras.repository.CompraRepository;
 import com.ligiamanzano.salon.compras.repository.DetalleCompraRepository;
 import com.ligiamanzano.salon.configuracion.service.ParametroService;
+import com.ligiamanzano.salon.contabilidad.service.CuentaContableService;
 import com.ligiamanzano.salon.inventario.service.InventarioService;
 import com.ligiamanzano.salon.inventario.service.ProductoService;
+import com.ligiamanzano.salon.security.Rol;
 import com.ligiamanzano.salon.security.UsuarioActual;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
@@ -42,6 +44,7 @@ public class CompraService {
     private static final Set<String> CON_IVA = Set.of(CCF, NC, ND);
     private static final String REGISTRADA = "REGISTRADA";
     private static final String ANULADA = "ANULADA";
+    private static final String REGLA_DE_LA_BASE = "REGLA_DE_LA_BASE";
     private static final short DTE = 4;
     private static final short IMPRESO = 1;
     private static final int MESES_PARA_DECLARAR = 3;
@@ -58,6 +61,7 @@ public class CompraService {
     private final ProductoService productos;
     private final InventarioService inventario;
     private final ParametroService parametros;
+    private final CuentaContableService cuentas;
     private final BitacoraService bitacora;
 
     public ComprasPaginaDTO listar(String buscar, String filtro, Integer idProveedor, int pagina, int tamano) {
@@ -110,6 +114,7 @@ public class CompraService {
         c.setClasificacionRenta(dto.clasificacionRenta());
         c.setSectorRenta(dto.sectorRenta());
         c.setTipoCostoGasto(dto.tipoCostoGasto());
+        c.setCodigoCuentaExentas(exentas.signum() > 0 ? Texto.limpio(dto.codigoCuentaExentas()) : null);
         c.setFechaVencimientoPago(proveedor.getDiasCredito() > 0
                 ? dto.fechaCompra().plusDays(proveedor.getDiasCredito())
                 : null);
@@ -127,6 +132,7 @@ public class CompraService {
             d.setCantidad(linea.cantidad());
             d.setCostoUnitario(linea.costoUnitario());
             d.setSubtotal(subtotales.get(i));
+            d.setCodigoCuenta(linea.idProducto() == null ? Texto.limpio(linea.codigoCuenta()) : null);
             detalleRepo.save(d);
             if (linea.idProducto() != null) {
                 lineasDeProducto++;
@@ -151,9 +157,69 @@ public class CompraService {
         return obtener(c.getIdCompra());
     }
 
+    @Transactional
+    public CompraDetalleDTO cambiarCuentas(int idCompra, CuentasCompraRequest dto) {
+        CompraEntity c = repo.findById(idCompra)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la compra."));
+        if (ANULADA.equals(c.getEstado())) {
+            throw new ConflictoException("La compra " + c.getNumeroCompra()
+                    + " está anulada: sus cuentas ya no se cambian.", REGLA_DE_LA_BASE, null);
+        }
+        if (consultas.contabilizada(idCompra)) {
+            throw new ConflictoException("La compra " + c.getNumeroCompra()
+                    + " ya está contabilizada: borre el borrador o anule la partida primero.", REGLA_DE_LA_BASE, null);
+        }
+        Map<Integer, DetalleCompraEntity> gastos = new LinkedHashMap<>();
+        detalleRepo.findAllByIdCompra(idCompra).stream()
+                .filter(d -> d.getIdProducto() == null)
+                .forEach(d -> gastos.put(d.getIdDetalleCompra(), d));
+        Map<String, Object> antes = cuentasBitacora(c.getCodigoCuentaExentas(), gastos.values());
+
+        Map<String, String> campos = new LinkedHashMap<>();
+        for (CuentaGastoRequest linea : dto.detalle() == null ? List.<CuentaGastoRequest>of() : dto.detalle()) {
+            DetalleCompraEntity d = gastos.get(linea.idDetalleCompra());
+            if (d == null) {
+                campos.putIfAbsent("detalle", "Una de las líneas no es un gasto de la compra " + c.getNumeroCompra() + ".");
+                continue;
+            }
+            String cuenta = Texto.limpio(linea.codigoCuenta());
+            String problema = cuenta == null ? null : cuentas.problemaParaRegistrar(cuenta);
+            if (problema != null) campos.putIfAbsent("detalle", "La línea \"" + d.getDescripcion() + "\": " + minuscula(problema));
+            d.setCodigoCuenta(cuenta);
+        }
+        gastos.values().stream()
+                .filter(d -> d.getCodigoCuenta() == null)
+                .findFirst()
+                .ifPresent(d -> campos.putIfAbsent("detalle",
+                        "Falta la cuenta contable de la línea \"" + d.getDescripcion() + "\"."));
+        boolean conExentas = c.getComprasExentas().signum() > 0;
+        String cuentaExentas = conExentas ? Texto.limpio(dto.codigoCuentaExentas()) : null;
+        String problemaExentas = revisarCuentaExentas(c.getComprasExentas(), cuentaExentas, false);
+        if (problemaExentas != null) campos.put("codigoCuentaExentas", problemaExentas);
+        if (!campos.isEmpty()) {
+            throw new OperacionInvalidaException("Revisa los campos marcados", "DATOS_INVALIDOS", campos);
+        }
+
+        c.setCodigoCuentaExentas(cuentaExentas);
+        detalleRepo.saveAll(gastos.values());
+        repo.saveAndFlush(c);
+        bitacora.registrarCambios(BitacoraService.COMPRAS, "EDITAR", ENTIDAD, c.getNumeroCompra(),
+                "Cambió las cuentas contables de la compra " + c.getNumeroCompra(),
+                antes, cuentasBitacora(cuentaExentas, gastos.values()));
+        return obtener(idCompra);
+    }
+
+    private static Map<String, Object> cuentasBitacora(String cuentaExentas, Collection<DetalleCompraEntity> gastos) {
+        Map<String, Object> datos = new LinkedHashMap<>();
+        gastos.forEach(d -> datos.put(d.getDescripcion() + " (" + d.getIdDetalleCompra() + ")", d.getCodigoCuenta()));
+        datos.put("codigoCuentaExentas", cuentaExentas);
+        return datos;
+    }
+
     private ProveedorEntity validar(CompraRequest dto, String numeroDocumento, UUID codigoGeneracion) {
         Map<String, String> campos = new LinkedHashMap<>();
         String tipo = dto.tipoDocumentoProveedor();
+        boolean sinCatalogo = UsuarioActual.es(Rol.RECEPCIONISTA);
         boolean nota = NC.equals(tipo) || ND.equals(tipo);
 
         Optional<ProveedorEntity> proveedor = proveedores.buscarParaCompra(dto.idProveedor());
@@ -179,8 +245,10 @@ public class CompraService {
         if (!CLASIFICACIONES_RENTA.contains(dto.clasificacionRenta())) campos.put("clasificacionRenta", "Código no válido.");
         if (!SECTORES_RENTA.contains(dto.sectorRenta())) campos.put("sectorRenta", "Código no válido.");
         if (dto.tipoCostoGasto() < 1 || dto.tipoCostoGasto() > 8) campos.put("tipoCostoGasto", "Código no válido.");
-        String errorLinea = revisarLineas(dto.detalle(), tipo, problemaRelacionada == null ? dto.idCompraRelacionada() : null);
+        String errorLinea = revisarLineas(dto.detalle(), tipo, problemaRelacionada == null ? dto.idCompraRelacionada() : null, sinCatalogo);
         if (errorLinea != null) campos.put("detalle", errorLinea);
+        String problemaExentas = revisarCuentaExentas(dto.comprasExentas(), Texto.limpio(dto.codigoCuentaExentas()), sinCatalogo);
+        if (problemaExentas != null) campos.put("codigoCuentaExentas", problemaExentas);
         if (!campos.isEmpty()) {
             throw new OperacionInvalidaException("Revisa los campos marcados", "DATOS_INVALIDOS", campos);
         }
@@ -227,7 +295,13 @@ public class CompraService {
         return primerDia && enRango ? null : "El crédito fiscal se declara en el mes del documento o hasta 3 meses después.";
     }
 
-    private String revisarLineas(List<LineaCompraRequest> lineas, String tipo, Integer idCompraRelacionada) {
+    private String revisarCuentaExentas(BigDecimal exentas, String cuenta, boolean sinCatalogo) {
+        if (exentas == null || exentas.signum() <= 0) return null;
+        if (cuenta == null) return sinCatalogo ? null : "Elige la cuenta contable de las compras exentas.";
+        return cuentas.problemaParaRegistrar(cuenta);
+    }
+
+    private String revisarLineas(List<LineaCompraRequest> lineas, String tipo, Integer idCompraRelacionada, boolean sinCatalogo) {
         Map<Integer, Integer> vistos = new HashMap<>();
         for (int i = 0; i < lineas.size(); i++) {
             LineaCompraRequest linea = lineas.get(i);
@@ -235,6 +309,13 @@ public class CompraService {
             if (linea.idProducto() == null) {
                 if (Texto.limpio(linea.descripcion()) == null) return inicio + "escribe la descripción del gasto.";
                 if (linea.cantidad() != 1) return inicio + "un gasto lleva cantidad 1.";
+                String cuenta = Texto.limpio(linea.codigoCuenta());
+                if (cuenta == null) {
+                    if (!sinCatalogo) return inicio + "elige la cuenta contable del gasto.";
+                } else {
+                    String problema = cuentas.problemaParaRegistrar(cuenta);
+                    if (problema != null) return inicio + minuscula(problema);
+                }
                 continue;
             }
             if (ND.equals(tipo)) return inicio + "una nota de débito no lleva productos.";
@@ -274,6 +355,10 @@ public class CompraService {
             String mensaje = ErrorDeBase.mensaje(e).orElseThrow(() -> e);
             throw new ConflictoException(mensaje, "STOCK_INSUFICIENTE", null);
         }
+    }
+
+    private static String minuscula(String texto) {
+        return Character.toLowerCase(texto.charAt(0)) + texto.substring(1);
     }
 
     private static BigDecimal porcentaje(BigDecimal monto, BigDecimal pct) {

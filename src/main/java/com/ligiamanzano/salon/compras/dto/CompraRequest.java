@@ -22,5 +22,6 @@ public record CompraRequest(
         @NotNull(message = "Elige la clasificación") Short clasificacionRenta,
         @NotNull(message = "Elige el sector") Short sectorRenta,
         @NotNull(message = "Elige el tipo de costo o gasto") Short tipoCostoGasto,
-        @NotEmpty(message = "Agrega al menos una línea") List<@Valid LineaCompraRequest> detalle
+        @NotEmpty(message = "Agrega al menos una línea") List<@Valid LineaCompraRequest> detalle,
+        @Size(max = 12, message = "Hasta 12 caracteres") String codigoCuentaExentas
 ) {}

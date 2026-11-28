@@ -165,7 +165,8 @@ public class CompraConsultaRepository {
 
     public Optional<CompraDetalleDTO> detalle(int idCompra) {
         List<LineaCompraDTO> lineas = jdbc.sql("""
-                        select d.id_producto, pr.nombre_producto, d.descripcion, d.cantidad, d.costo_unitario, d.subtotal,
+                        select d.id_detalle_compra, d.id_producto, pr.nombre_producto, d.descripcion, d.cantidad,
+                               d.costo_unitario, d.subtotal, d.codigo_cuenta,
                                coalesce(l.cantidad_disponible, dev.cantidad_disponible) as cantidad_disponible
                           from tb_detalle_compras d
                           left join tb_productos pr on pr.id_producto = d.id_producto
@@ -182,13 +183,15 @@ public class CompraConsultaRepository {
                         """)
                 .param("idCompra", idCompra)
                 .query((rs, n) -> new LineaCompraDTO(
+                        rs.getInt("id_detalle_compra"),
                         rs.getObject("id_producto", Integer.class),
                         rs.getString("nombre_producto"),
                         rs.getString("descripcion"),
                         rs.getInt("cantidad"),
                         rs.getBigDecimal("costo_unitario"),
                         rs.getBigDecimal("subtotal"),
-                        rs.getObject("cantidad_disponible", Integer.class)))
+                        rs.getObject("cantidad_disponible", Integer.class),
+                        rs.getString("codigo_cuenta")))
                 .list();
         return jdbc.sql("""
                         select c.*, coalesce(p.nombre_comercial, p.razon_social) as nombre_proveedor,
@@ -227,7 +230,15 @@ public class CompraConsultaRepository {
                         rs.getString("estado"),
                         rs.getString("nombre_completo"),
                         Fechas.local(rs.getObject("creado_en", OffsetDateTime.class)).truncatedTo(ChronoUnit.SECONDS),
-                        lineas))
+                        lineas,
+                        rs.getString("codigo_cuenta_exentas")))
                 .optional();
+    }
+
+    public boolean contabilizada(int idCompra) {
+        return jdbc.sql("select fn_contabilizado('COMPRA', :idCompra)")
+                .param("idCompra", idCompra)
+                .query(Boolean.class)
+                .single();
     }
 }

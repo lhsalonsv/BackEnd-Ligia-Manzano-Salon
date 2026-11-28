@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -89,5 +90,19 @@ public class ProveedorConsultaRepository {
                 .param("hoy", Fechas.hoy())
                 .query((rs, n) -> new TotalComprasDTO(rs.getLong("cantidad"), rs.getBigDecimal("total")))
                 .single();
+    }
+
+    public Optional<String> ultimaCuenta(int idProveedor) {
+        return jdbc.sql("""
+                        select d.codigo_cuenta
+                          from tb_detalle_compras d
+                          join tb_compras c on c.id_compra = d.id_compra
+                         where c.id_proveedor = :idProveedor and c.estado <> 'ANULADA' and d.codigo_cuenta is not null
+                         order by c.fecha_compra desc, c.id_compra desc, d.id_detalle_compra desc
+                         limit 1
+                        """)
+                .param("idProveedor", idProveedor)
+                .query(String.class)
+                .optional();
     }
 }

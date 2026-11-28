@@ -7,6 +7,7 @@ import com.ligiamanzano.salon.common.util.Texto;
 import com.ligiamanzano.salon.compras.dto.ProveedorFichaDTO;
 import com.ligiamanzano.salon.compras.dto.ProveedorListaDTO;
 import com.ligiamanzano.salon.compras.dto.ProveedorRequest;
+import com.ligiamanzano.salon.compras.dto.UltimaCuentaDTO;
 import com.ligiamanzano.salon.compras.entity.ProveedorEntity;
 import com.ligiamanzano.salon.compras.repository.ProveedorConsultaRepository;
 import com.ligiamanzano.salon.compras.repository.ProveedorRepository;
@@ -37,6 +38,11 @@ public class ProveedorService {
 
     public ProveedorFichaDTO obtener(int idProveedor) {
         return convertirAFicha(buscar(idProveedor));
+    }
+
+    public UltimaCuentaDTO ultimaCuenta(int idProveedor) {
+        buscar(idProveedor);
+        return new UltimaCuentaDTO(consultas.ultimaCuenta(idProveedor).orElse(null));
     }
 
     @Transactional

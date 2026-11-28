@@ -34,4 +34,7 @@ public class DetalleCompraEntity {
 
     @Column(name = "subtotal", nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotal;
+
+    @Column(name = "codigo_cuenta", length = 12)
+    private String codigoCuenta;
 }

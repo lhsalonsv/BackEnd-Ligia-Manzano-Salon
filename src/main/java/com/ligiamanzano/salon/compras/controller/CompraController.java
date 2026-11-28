@@ -3,6 +3,7 @@ package com.ligiamanzano.salon.compras.controller;
 import com.ligiamanzano.salon.compras.dto.CompraDetalleDTO;
 import com.ligiamanzano.salon.compras.dto.CompraRequest;
 import com.ligiamanzano.salon.compras.dto.ComprasPaginaDTO;
+import com.ligiamanzano.salon.compras.dto.CuentasCompraRequest;
 import com.ligiamanzano.salon.compras.service.CompraService;
 import com.ligiamanzano.salon.security.Permisos;
 import jakarta.validation.Valid;
@@ -37,5 +38,11 @@ public class CompraController {
     @PreAuthorize(Permisos.ADMIN)
     public ResponseEntity<CompraDetalleDTO> registrar(@Valid @RequestBody CompraRequest dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.registrar(dto));
+    }
+
+    @PatchMapping("/{id}/cuentas")
+    @PreAuthorize(Permisos.CONTABILIDAD)
+    public CompraDetalleDTO cambiarCuentas(@PathVariable int id, @Valid @RequestBody CuentasCompraRequest dto) {
+        return service.cambiarCuentas(id, dto);
     }
 }

@@ -14,4 +14,9 @@ public final class UsuarioActual {
         }
         throw new IllegalStateException("Esta operación necesita un usuario con sesión");
     }
+
+    public static boolean es(Rol rol) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getPrincipal() instanceof UsuarioAutenticado u && u.rol() == rol;
+    }
 }

@@ -90,6 +90,14 @@ public class CuentaContableService {
         return null;
     }
 
+    public String problemaParaRegistrar(String codigo) {
+        CuentaContableEntity c = repo.findById(codigo).orElse(null);
+        if (c == null) return "No existe la cuenta " + codigo + ".";
+        if (!c.isActiva()) return "La cuenta " + codigo + " está inactiva.";
+        if (!c.isAceptaMovimiento()) return "La cuenta " + codigo + " no acepta movimiento.";
+        return null;
+    }
+
     public boolean existe(String codigo) {
         return codigo != null && repo.existsById(codigo);
     }

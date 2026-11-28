@@ -85,4 +85,7 @@ public class CompraEntity {
 
     @Column(name = "creado_en", nullable = false, insertable = false, updatable = false)
     private Instant creadoEn;
+
+    @Column(name = "codigo_cuenta_exentas", length = 12)
+    private String codigoCuentaExentas;
 }

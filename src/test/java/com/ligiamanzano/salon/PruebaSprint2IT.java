@@ -374,8 +374,9 @@ class PruebaSprint2IT {
 
         ResultActions rc = enviar(post("/api/compras"), compra(idProv, "CCF", "DTE-03-LIB-" + sufijo, codigo(sufijo, 1), null, """
                 { "idProducto": %d, "cantidad": 10, "costoUnitario": 5.00 },
-                { "descripcion": "  Bolsas para clientas ", "cantidad": 1, "costoUnitario": 12.00 }""".formatted(idA))
-                        .replace("\"comprasExentas\": 0, \"percepcion\": false", "\"comprasExentas\": 3.00, \"percepcion\": true"))
+                { "descripcion": "  Bolsas para clientas ", "codigoCuenta": "51010201", "cantidad": 1, "costoUnitario": 12.00 }""".formatted(idA))
+                        .replace("\"comprasExentas\": 0, \"percepcion\": false",
+                                "\"comprasExentas\": 3.00, \"codigoCuentaExentas\": \"51010205\", \"percepcion\": true"))
                 .andDo(print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.subtotalSinIva").value(62.00))
@@ -391,7 +392,7 @@ class PruebaSprint2IT {
         String numeroCcf = valor(rc, "$.numeroCompra");
 
         String nota = compra(idProv, "NC", "DTE-05-LIB-" + sufijo, codigo(sufijo, 2), idCcf,
-                "{ \"descripcion\": \"Descuento por pronto pago\", \"cantidad\": 1, \"costoUnitario\": 5.00 }");
+                "{ \"descripcion\": \"Descuento por pronto pago\", \"codigoCuenta\": \"51010201\", \"cantidad\": 1, \"costoUnitario\": 5.00 }");
         enviar(post("/api/compras"), nota.replace("\"idCompraRelacionada\": " + idCcf, "\"idCompraRelacionada\": null"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campos.idCompraRelacionada").value("Elige la compra que corrige."));

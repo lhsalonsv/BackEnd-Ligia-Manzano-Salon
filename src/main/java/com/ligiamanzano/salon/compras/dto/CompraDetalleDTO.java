@@ -31,5 +31,6 @@ public record CompraDetalleDTO(
         String estado,
         String nombreUsuario,
         OffsetDateTime creadoEn,
-        List<LineaCompraDTO> detalle
+        List<LineaCompraDTO> detalle,
+        String codigoCuentaExentas
 ) {}

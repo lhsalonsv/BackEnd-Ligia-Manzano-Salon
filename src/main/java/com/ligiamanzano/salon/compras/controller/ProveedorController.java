@@ -4,6 +4,7 @@ import com.ligiamanzano.salon.common.request.ActivoRequest;
 import com.ligiamanzano.salon.compras.dto.ProveedorFichaDTO;
 import com.ligiamanzano.salon.compras.dto.ProveedorListaDTO;
 import com.ligiamanzano.salon.compras.dto.ProveedorRequest;
+import com.ligiamanzano.salon.compras.dto.UltimaCuentaDTO;
 import com.ligiamanzano.salon.compras.service.ProveedorService;
 import com.ligiamanzano.salon.security.Permisos;
 import jakarta.validation.Valid;
@@ -30,6 +31,12 @@ public class ProveedorController {
     @GetMapping("/{id}")
     public ProveedorFichaDTO obtener(@PathVariable int id) {
         return service.obtener(id);
+    }
+
+    @GetMapping("/{id}/ultima-cuenta")
+    @PreAuthorize(Permisos.CONTABILIDAD)
+    public UltimaCuentaDTO ultimaCuenta(@PathVariable int id) {
+        return service.ultimaCuenta(id);
     }
 
     @PostMapping
