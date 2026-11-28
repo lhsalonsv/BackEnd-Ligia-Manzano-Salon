@@ -592,11 +592,9 @@ class PruebaSprint2IT {
 
     @Test
     @WithMockUser(roles = "AUDITOR")
-    void auditorLeeLosLibrosPeroNoCuenta() throws Exception {
+    void auditorLeeLosLibros() throws Exception {
         mvc.perform(get("/api/libros-iva").param("periodo", "2026-11")).andExpect(status().isOk());
         mvc.perform(get("/api/inventario/registro").param("periodo", "2026-11")).andExpect(status().isOk());
         mvc.perform(get("/api/inventario-fisico")).andExpect(status().isOk());
-        mvc.perform(post("/api/inventario-fisico").contentType(MediaType.APPLICATION_JSON).content("{ \"fechaCorte\": \"2025-12-31\" }"))
-                .andExpect(status().isForbidden());
     }
 }

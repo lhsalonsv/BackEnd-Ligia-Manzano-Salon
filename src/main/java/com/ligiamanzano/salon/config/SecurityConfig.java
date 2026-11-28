@@ -24,7 +24,6 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 public class SecurityConfig {
 
     private static final String[] TODOS = {"ADMINISTRADOR", "RECEPCIONISTA", "CONTADOR", "AUDITOR"};
-    private static final String[] PUEDEN_MODIFICAR = {"ADMINISTRADOR", "RECEPCIONISTA", "CONTADOR"};
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -48,8 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers("/api/auth/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole(TODOS)
-                        .requestMatchers("/api/**").hasAnyRole(PUEDEN_MODIFICAR)
+                        .requestMatchers("/api/**").hasAnyRole(TODOS)
                         .anyRequest().denyAll())
 
                 .exceptionHandling(e -> e

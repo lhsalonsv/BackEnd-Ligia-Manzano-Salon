@@ -260,12 +260,10 @@ class ContabilidadReportesIT {
 
     @Test
     @WithMockUser(roles = "AUDITOR")
-    void auditorSoloLee() throws Exception {
+    void auditorLeeLosReportes() throws Exception {
         mvc.perform(get("/api/contabilidad/reportes/saldos").param("anio", "2099").param("mes", "1")).andExpect(status().isOk());
         mvc.perform(get("/api/contabilidad/reportes/diario").param("desde", "2099-01-01").param("hasta", "2099-01-31")).andExpect(status().isOk());
         mvc.perform(get("/api/contabilidad/reportes/mayor").param("cuenta", "1").param("desde", "2099-01-01").param("hasta", "2099-01-31")).andExpect(status().isOk());
-        mvc.perform(post("/api/contabilidad/ejercicios/2099/partida-cierre")).andExpect(status().isForbidden());
-        mvc.perform(post("/api/contabilidad/ejercicios/2099/cerrar")).andExpect(status().isForbidden());
     }
 
     @Test

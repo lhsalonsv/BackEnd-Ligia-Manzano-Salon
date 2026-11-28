@@ -240,15 +240,45 @@ class ContabilidadPartidasIT {
     }
 
     @Test
-    @WithMockUser(roles = "AUDITOR")
-    void auditorSoloLee() throws Exception {
-        mvc.perform(get("/api/contabilidad/partidas")).andExpect(status().isOk());
-        mvc.perform(get("/api/contabilidad/partidas/999999999")).andExpect(status().isNotFound());
-        mvc.perform(post("/api/contabilidad/partidas").contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"fecha\": \"2099-01-15\", \"codigoTipo\": \"PDA\", \"concepto\": \"x\", \"lineas\": [] }"))
-                .andExpect(status().isForbidden());
-        mvc.perform(delete("/api/contabilidad/partidas/1")).andExpect(status().isForbidden());
-        mvc.perform(post("/api/contabilidad/partidas/1/aplicar")).andExpect(status().isForbidden());
+    void auditorGestionaLaContabilidad() throws Exception {
+        assumeTrue(jdbc.sql("select count(*) from tb_ejercicios where anio = 2099").query(Long.class).single() == 0,
+                "Ya existe el ejercicio 2099 en development");
+        UsuarioEntity usuario = new UsuarioEntity();
+        usuario.setNombreUsuario("prueba.audi" + System.nanoTime() % 100000);
+        usuario.setNombreCompleto("Prueba Auditor");
+        usuario.setContrasenaHash("sin-clave");
+        usuario.setIdRol(Rol.AUDITOR.getId());
+        usuario.setActivo(true);
+        usuario = usuarios.save(usuario);
+        sesionContador = UsernamePasswordAuthenticationToken.authenticated(
+                new UsuarioAutenticado(usuario.getIdUsuario(), usuario.getNombreUsuario(), usuario.getNombreCompleto(),
+                        Rol.AUDITOR, false, UUID.randomUUID()),
+                null, List.of(new SimpleGrantedAuthority("ROLE_AUDITOR")));
+
+        leer("/api/contabilidad/partidas").andExpect(status().isOk());
+        enviar(post("/api/contabilidad/ejercicios"), "{ \"anio\": 2099 }").andExpect(status().isCreated());
+        enviar(post("/api/contabilidad/tipos-partida"), "{ \"codigo\": \"TSA\", \"nombre\": \"Prueba auditor\", \"predeterminado\": false, \"activo\": true }")
+                .andExpect(status().isCreated());
+        int id = valor(enviar(post("/api/contabilidad/partidas"),
+                partida("2099-01-15", "Ajuste del auditor", linea("110101", "10.00", "0") + ", " + linea("61010107", "0", "10.00")))
+                .andExpect(status().isCreated()), "$.idPartida");
+        enviar(post("/api/contabilidad/partidas/" + id + "/aplicar"), "").andExpect(status().isOk());
+        enviar(post("/api/contabilidad/partidas/" + id + "/anular"), "{ \"motivo\": \"Revisión del auditor\", \"fecha\": \"2099-01-20\" }")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.origen").value("ANULACION"));
+        enviar(post("/api/contabilidad/periodos/2099/1/cerrar"), "").andExpect(status().isOk());
+        enviar(post("/api/contabilidad/periodos/2099/1/reabrir"), "").andExpect(status().isOk());
+        sinDejarRastro(post("/api/contabilidad/ejercicios/2099/partida-cierre"), "").andExpect(status().isConflict());
+
+        String config = leer("/api/contabilidad/configuracion").andReturn().getResponse().getContentAsString();
+        enviar(put("/api/contabilidad/configuracion"), config).andExpect(status().isOk());
+        enviar(patch("/api/compras/0/cuentas"), "{ \"detalle\": [] }").andExpect(status().isNotFound());
+        enviar(put("/api/inventario-fisico/0/conteo"), "[]").andExpect(status().isNotFound());
+
+        assertEquals(1L, jdbc.sql("""
+                        select count(*) from tb_bitacora
+                         where id_usuario = :id and modulo = 'CONTABILIDAD' and accion = 'ANULAR'
+                        """).param("id", usuario.getIdUsuario()).query(Long.class).single());
     }
 
     @Test

@@ -277,11 +277,4 @@ class ContabilizarComprasIT {
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/proveedores/1/ultima-cuenta")).andExpect(status().isForbidden());
     }
-
-    @Test
-    @WithMockUser(roles = "AUDITOR")
-    void auditorNoCambiaCuentas() throws Exception {
-        mvc.perform(patch("/api/compras/1/cuentas").contentType(MediaType.APPLICATION_JSON).content("{ \"detalle\": [] }"))
-                .andExpect(status().isForbidden());
-    }
 }

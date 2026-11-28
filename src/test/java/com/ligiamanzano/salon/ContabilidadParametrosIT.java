@@ -223,14 +223,11 @@ class ContabilidadParametrosIT {
 
     @Test
     @WithMockUser(roles = "AUDITOR")
-    void auditorSoloLee() throws Exception {
+    void auditorEntra() throws Exception {
         mvc.perform(get("/api/contabilidad/cuentas")).andExpect(status().isOk());
         mvc.perform(get("/api/contabilidad/ejercicios")).andExpect(status().isOk());
         mvc.perform(get("/api/contabilidad/tipos-partida")).andExpect(status().isOk());
         mvc.perform(get("/api/contabilidad/configuracion")).andExpect(status().isOk());
-        mvc.perform(post("/api/contabilidad/ejercicios").contentType(MediaType.APPLICATION_JSON).content("{ \"anio\": 2099 }"))
-                .andExpect(status().isForbidden());
-        mvc.perform(post("/api/contabilidad/periodos/2099/1/cerrar")).andExpect(status().isForbidden());
     }
 
     @Test
